@@ -1,4 +1,5 @@
-// resampler test, public domain, Rich Geldreich - richgel99@gmail.com
+// resampler test, Rich Geldreich - richgel99@gmail.com
+// See unlicense.org text at the bottom of resampler.h
 // Example usage: resampler.exe input.tga output.tga width height
 #include <stdlib.h>
 #include <stdio.h>
@@ -80,6 +81,8 @@ int main(int arg_c, char** arg_v)
    Resampler* resamplers[max_components];
    std::vector<float> samples[max_components];
    
+   // Now create a Resampler instance for each component to process. The first instance will create new contributor tables, which are shared by the resamplers 
+   // used for the other components (a memory and slight cache efficiency optimization).
    resamplers[0] = new Resampler(src_width, src_height, dst_width, dst_height, Resampler::BOUNDARY_CLAMP, 0.0f, 1.0f, pFilter, NULL, NULL, filter_scale, filter_scale);
    samples[0].resize(src_width);
    for (int i = 1; i < n; i++)
@@ -122,16 +125,16 @@ int main(int arg_c, char** arg_v)
          
       for ( ; ; )
       {
-         int c;
-         for (c = 0; c < n; c++)
+         int comp_index;
+         for (comp_index = 0; comp_index < n; comp_index++)
          {
-            const float* pOutput_samples = resamplers[c]->get_line();
+            const float* pOutput_samples = resamplers[comp_index]->get_line();
             if (!pOutput_samples)
                break;
             
-            const bool alpha_channel = (c == 3) || ((n == 2) && (c == 1));
+            const bool alpha_channel = (comp_index == 3) || ((n == 2) && (comp_index == 1));
             assert(dst_y < dst_height);
-            unsigned char* pDst = &dst_image[dst_y * dst_pitch + c];
+            unsigned char* pDst = &dst_image[dst_y * dst_pitch + comp_index];
             
             for (int x = 0; x < dst_width; x++)
             {
@@ -151,7 +154,7 @@ int main(int arg_c, char** arg_v)
                pDst += n;
             }
          }     
-         if (c < n)
+         if (comp_index < n)
             break; 
          
          dst_y++;
@@ -167,6 +170,10 @@ int main(int arg_c, char** arg_v)
    }
    
    stbi_image_free(pSrc_image);
+
+   // Delete the resamplers.
+   for (int i = 0; i < n; i++)
+      delete resamplers[i];
    
    return EXIT_SUCCESS;
 }
